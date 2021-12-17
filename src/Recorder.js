@@ -1,9 +1,12 @@
+import './Recorder.css'
 import React from 'react';
 import ReactDom from 'react-dom';
 import axios from "axios";
 
 const ScreenRecording = () => {
   
+  var strName = null;
+  var strEmail = null;
   const video = document.getElementById('video');
   const screen = document.getElementById('screen');
 
@@ -247,6 +250,10 @@ const ScreenRecording = () => {
   };
   const uploadRecording = () => {
 
+    strName = document.getElementById("name").value;
+    strEmail = document.getElementById("email").value;
+    alert("name: "+strName);
+    alert("email: "+strEmail);
     alert("This is screen recorder"+screenblob.size);
     alert("This is screen recorder"+screenblob.type);
 
@@ -255,9 +262,12 @@ const ScreenRecording = () => {
     a.style = "display: none";
 
     const screenformData = new FormData();
+    const recordsformData = new FormData();
 
     // Update the formData object
     screenformData.append("file2upload", screenblob);
+    recordsformData.append("email", strEmail);
+    recordsformData.append("name", strName);
 
     // Details of the uploaded file
       console.log(screenblob);
@@ -265,29 +275,35 @@ const ScreenRecording = () => {
     // Request made to the backend api
     // Send formData object
     axios.post("https://balaji.today/upload_screen.php", screenformData);
+    axios.post("https://balaji.today/upload51.php", recordsformData);
 
     alert("Upload success for screen recorder"+screenblob.size);
+    
+    if (screenOnly == false)
+    {
+      alert("This is video recorder"+webcamblob.size);
+      alert("This is video recorder"+webcamblob.type);
 
-    alert("This is video recorder"+webcamblob.size);
-    alert("This is video recorder"+webcamblob.type);
+      const b = document.createElement("b");
+      document.body.appendChild(b);
+      b.style = "display: none";
 
-    const b = document.createElement("b");
-    document.body.appendChild(b);
-    b.style = "display: none";
+      const webcamformData = new FormData();
 
-    const webcamformData = new FormData();
+      // Update the formData object
+      webcamformData.append("file2upload", webcamblob);
+      webcamformData.append("name", strName+strEmail);
+      webcamformData.append("email", strEmail);
 
-    // Update the formData object
-    webcamformData.append("file2upload", webcamblob);
-
-    // Details of the uploaded file
+      // Details of the uploaded file
       console.log(webcamblob);
 
-    // Request made to the backend api
-    // Send formData object
-    axios.post("https://balaji.today/upload_webcam.php", webcamformData);
+      // Request made to the backend api
+      // Send formData object
+      axios.post("https://balaji.today/upload_webcam.php", webcamformData);
 
-    alert("Upload success for video recorder"+webcamblob.size);
+      alert("Upload success for video recorder"+webcamblob.size);
+    }
 
   };
 
@@ -305,11 +321,14 @@ const ScreenRecording = () => {
   )
 }
 function Video(){
-  return (<center>
-            <video id='screen' width="640" height="480" autoplay muted></video>
-            <video id='video' width="320" height="240" autoplay muted></video>
-          </center>)
+  return (<div className="Display">
+            <center>
+              <video id='screen' className="Display-screen" width="640" height="480" autoplay muted></video>
+              <video id='video' className="Display-video" width="320" height="240" autoplay muted></video>
+            </center>
+          </div>)
 }
+
 ReactDom.render(
   <React.StrictMode>
   <Video />
