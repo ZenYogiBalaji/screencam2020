@@ -48,15 +48,17 @@ const ScreenRecording = () => {
   var screenblob = null;
   var webcamblob = null;
   let screenOnly = true;
+  let webcamOnly = false;
 
   function stopRecording() {
-    
-   recorder1.stream.getTracks().forEach(track => track.stop());
-   if(screenOnly==false)
-   recorder2.stream.getTracks().forEach(track => track.stop());
+    recorder1.stream.getTracks().forEach(track => track.stop());
+   if((screenOnly==false) && (webcamOnly==false)) 
+    recorder2.stream.getTracks().forEach(track => track.stop());
   }
 
   async function recordScreen() {
+    screenOnly = true;
+    webcamOnly = false;
     const screenStream = await captureScreen();
     const audioStream = await captureMediaDevices({
       audio: {
@@ -115,6 +117,7 @@ const ScreenRecording = () => {
   
   async function recordScreenVideoAudio() {
     screenOnly = false;
+    webcamOnly = false;
     const screenStream = await captureScreen();
     const videoStream = await captureMediaDevices({
       audio: false,
@@ -185,8 +188,58 @@ const ScreenRecording = () => {
     recorder1.start(200);
     recorder2.start(200);
   }
+
+  async function recordVideo() {
+    screenOnly = false;
+    webcamOnly = true;
+    const videoStream = await captureMediaDevices({
+      audio: false,
+      video: {
+        width: 1280,
+        height: 720
+      }
+    });
+    const audioStream = await captureMediaDevices({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 44100
+      },
+      video: false
+    });
+ 
+    const stream1 = new MediaStream([...videoStream.getTracks(),...audioStream.getTracks()]);
+    
+    screen.src = null;
+    screen.srcObject = stream1;
+    screen.muted = true;
+    screen.autoplay = true;
+    
+    recorder1 = new MediaRecorder(stream1);
+    let chunks1 = [];
+  
+    recorder1.ondataavailable = event => {
+      if (event.data.size > 0) {
+        chunks1.push(event.data);
+      }
+    }
+    
+    recorder1.onstop = () => {
+      const blob = new Blob(chunks1, {
+        type: 'video/webm'
+      })
+      chunks1 = [];
+      webcamblob = blob;
+      const blobUrl = URL.createObjectURL(blob);
+      strFile1 = blobUrl;
+
+     }
+
+    recorder1.start(200);
+  }
+
   const previewRecording = () => {
-    if (screenOnly == false)
+    if ((screenOnly == false) && (webcamOnly == false))
     {
       screen.srcObject = null;
       screen.src = strFile1;
@@ -197,125 +250,90 @@ const ScreenRecording = () => {
       video.muted = false;
       video.autoplay = true;
     }
-    else if (screenOnly == true)
+    else if ((screenOnly == true) && (webcamOnly == false))
     {
       screen.srcObject = null;
       screen.src = strFile1;
       screen.muted = false;
       screen.autoplay = true; 
     }
-  }
-  const downloadRecording = () => {
-    let screenRecordingPath = "screen";
-    let screenRecordingType = "webm"
-    const pathName1 = `${screenRecordingPath}.${screenRecordingType}`;
-    try {
-      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-        // for IE
-        window.navigator.msSaveOrOpenBlob(strFile1, pathName1);
-      } else {
-        // for Chrome
-        const link = document.createElement("a");
-        link.href = strFile1;
-        link.download = pathName1;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    if(screenOnly==false)
+    else if ((screenOnly == false) && (webcamOnly == true))
     {
-    let videoRecordingPath = "video";
-    let videoRecordingType = "webm"
-    const pathName2 = `${videoRecordingPath}.${videoRecordingType}`;
-    try {
-      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-        // for IE
-        window.navigator.msSaveOrOpenBlob(strFile2, pathName2);
-      } else {
-        // for Chrome
-        const link = document.createElement("a");
-        link.href = strFile2;
-        link.download = pathName2;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
-    } catch (err) {
-      console.error(err);
+      screen.srcObject = null;
+      screen.src = strFile1;
+      screen.muted = false;
+      screen.autoplay = true;
     }
   }
-  };
+ 
   const uploadRecording = () => {
 
     strName = document.getElementById("name").value;
     strEmail = document.getElementById("email").value;
     alert("name: "+strName);
     alert("email: "+strEmail);
-    alert("This is screen recorder"+screenblob.size);
-    alert("This is screen recorder"+screenblob.type);
 
     const a = document.createElement("a");
     document.body.appendChild(a);
     a.style = "display: none";
-
-    const screenformData = new FormData();
-    const recordsformData = new FormData();
+    
+    const formData = new FormData();
 
     // Update the formData object
-    screenformData.append("file2upload", screenblob);
-    recordsformData.append("email", strEmail);
-    recordsformData.append("name", strName);
-
-    // Details of the uploaded file
-      console.log(screenblob);
+    if(webcamOnly == false)
+    {
+      formData.append("file2upload1", screenblob);
+      if(screenOnly == false)
+      {
+        formData.append("file2upload2", webcamblob);
+      }
+    }
+    else if(webcamOnly == true)
+    {
+      formData.append("file2upload2", webcamblob);
+    }
+    formData.append("email", strEmail);
+    formData.append("name", strName);
 
     // Request made to the backend api
     // Send formData object
-    axios.post("https://balaji.today/upload_screen.php", screenformData);
-    axios.post("https://balaji.today/upload51.php", recordsformData);
+    axios.post("https://balaji.today/upload53.php/multiplefiles", formData,{headers:{"Content-Type": "multipart/form-data"}});
 
-    alert("Upload success for screen recorder"+screenblob.size);
-    
-    if (screenOnly == false)
+    // Clear Object URL and blob
+    cleardata();
+
+    alert("Upload success");
+  }
+
+  const cleardata = () => {
+    if((screenOnly == false) && (webcamOnly == false))
     {
-      alert("This is video recorder"+webcamblob.size);
-      alert("This is video recorder"+webcamblob.type);
-
-      const b = document.createElement("b");
-      document.body.appendChild(b);
-      b.style = "display: none";
-
-      const webcamformData = new FormData();
-
-      // Update the formData object
-      webcamformData.append("file2upload", webcamblob);
-      webcamformData.append("name", strName+strEmail);
-      webcamformData.append("email", strEmail);
-
-      // Details of the uploaded file
-      console.log(webcamblob);
-
-      // Request made to the backend api
-      // Send formData object
-      axios.post("https://balaji.today/upload_webcam.php", webcamformData);
-
-      alert("Upload success for video recorder"+webcamblob.size);
+      URL.revokeObjectURL(strFile1);
+      screenblob = null;
+      URL.revokeObjectURL(strFile2);
+      webcamblob = null;
     }
-
-  };
+    else if((screenOnly == true) && (webcamOnly == false))
+    {
+      URL.revokeObjectURL(strFile1);
+      screenblob = null;
+    }
+    else if((screenOnly == false) && (webcamOnly == true))
+    {
+      URL.revokeObjectURL(strFile1);
+      webcamblob = null;
+    }
+  }
 
   return(
       <center>
       <div>
-        <button onClick={recordScreen}>Record screen</button>
-        <button onClick={recordScreenVideoAudio}>Record Screen, video and audio</button>
-        <button onClick={stopRecording}>Stop!</button>
-        <button onClick={previewRecording}>Preview</button>
-        <button onClick={downloadRecording}>Download</button>
-        <button onClick={uploadRecording}>Upload</button>
+        <button onClick={recordScreen}>Record screen with voice</button>
+        <button onClick={recordScreenVideoAudio}>Record Screen with video</button>
+        <button onClick={recordVideo}>Record video</button>
+        <button onClick={stopRecording}>Stop Recording</button>
+        <button onClick={previewRecording}>Replay</button>
+        <button onClick={uploadRecording}>Upload and close</button>
       </div>
       </center>
   )
@@ -323,8 +341,8 @@ const ScreenRecording = () => {
 function Video(){
   return (<div className="Display">
             <center>
-              <video id='screen' className="Display-screen" width="640" height="480" autoplay muted></video>
-              <video id='video' className="Display-video" width="320" height="240" autoplay muted></video>
+              <video id='screen' className="Display-screen" width="800" height="600" autoplay muted></video>
+              <video id='video' className="Display-video" width="160" height="120" autoplay muted></video>
             </center>
           </div>)
 }
